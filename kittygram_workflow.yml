@@ -1,9 +1,10 @@
 name: Main workflow
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: ["Terraform"]
+    types:
+      - completed
 
 jobs:
   tests:
@@ -146,37 +147,64 @@ jobs:
       - build_and_push_to_docker_hub
       - build_frontend_and_push_to_docker_hub
       - build_gateway_and_push_to_docker_hub
+
     steps:
+    - name: Download artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: vm-ip
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        run-id: ${{ github.event.workflow_run.id }}
+
+    - name: Read VM IP
+      id: read-ip
+      run: echo "VM_IP=$(cat vm_ip.txt | xargs)" >> $GITHUB_OUTPUT
+
     - name: Checkout repo
       uses: actions/checkout@v3
+
     # Копируем docker-compose.production.yml на продакшен-сервер:
     - name: Copy docker-compose.yml via ssh
       uses: appleboy/scp-action@master
     # Передаём параметры для action appleboy/scp-action:
       with:
-        host: ${{ secrets.HOST }}
+        host: ${{ steps.read-ip.outputs.VM_IP }}
         username: ${{ secrets.USER }}
         key: ${{ secrets.SSH_KEY }}
-        passphrase: ${{ secrets.SSH_PASSPHRASE }}
-        source: "docker-compose.production.yml"
+        source: "docker-compose.production.yml,tests.yml,test/*.*"
         target: "kittygram"
+        timeout: "60s"
+        command_timeout: "10m"
     - name: Executing remote ssh commands to deploy
       uses: appleboy/ssh-action@master
       with:
-        host: ${{ secrets.HOST }}
+        host: ${{ steps.read-ip.outputs.VM_IP }}
         username: ${{ secrets.USER }}
         key: ${{ secrets.SSH_KEY }}
-        passphrase: ${{ secrets.SSH_PASSPHRASE }}
         # Параметр script передаёт в action appleboy/ssh-action команды,
         # которые нужно выполнить на сервере,
         # с которым установлено соединение:
         script: |
           cd kittygram
+          cat > .env << EOF
+          DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+          DATABASE_ENGINE=${{ secrets.DATABASE_ENGINE }}
+          DATABASE_NAME: ${{ secrets.DATABASE_NAME }}
+          DATABASE_USER=${{ secrets.DATABASE_USER }}
+          DATABASE_PASSWORD=${{ secrets.DATABASE_PASSWORD }}
+          DATABASE_HOST=${{ secrets.DATABASE_HOST }}
+          DATABASE_PORT=${{ secrets.DATABASE_PORT }}
+          DEBUG=${{ secrets.DEBUG }}
+          ALLOWED_HOSTS=${{ secrets.ALLOWED_HOSTS }}
+          ACCESS_KEY=${{ secrets.ACCESS_KEY_DJANGO }}
+          SECRET_KEY=${{ secrets.SECRET_KEY_DJANGO }}
+          EOF
           # Выполняет pull образов с Docker Hub
           sudo docker compose -f docker-compose.production.yml pull
           # Перезапускает все контейнеры в Docker Compose
           sudo docker compose -f docker-compose.production.yml down
           sudo docker compose -f docker-compose.production.yml up -d
+
   send_message:
     runs-on: ubuntu-latest
     needs: deploy
