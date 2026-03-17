@@ -1,38 +1,59 @@
-version: '3'
-
 volumes:
   pg_data:
   static:
   media:
 
+# Перечень контейнеров:
 services:
-  db:
-    image: postgres:13
-    env_file: .env
+  # Имя и описание первого контейнера; имя выбирает разработчик. 
+  # Это контейнер с базой данных:
+  postgres:
+    # Из какого образа запустить контейнер:
+    image: postgres:13.10
+    # Файл (или список файлов) с переменными окружения:
+    env_file: .env 
+    environment:
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
+      - POSTGRES_USER=${DATABASE_USER}
+      - POSTGRES_DB=${DATABASE_NAME}
     volumes:
       - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  # Имя и описание контейнера с бэкендом:
   backend:
+    # Из какого Dockerfile собирать образ для этого контейнера:
     build: ./backend/
     env_file: .env
-    working_dir: /app
-    environment:
-      - PYTHONPATH=/app/cats
-      - DJANGO_SETTINGS_MODULE=kittygram_backend.settings
+    # Какие контейнеры нужно запустить до старта этого контейнера:
     volumes:
-      - static:/app/static
-      - media:/app/media
+      - static:/app/collected_static/
+      - media:/app/media/
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn kittygram_backend.wsgi:application --bind 0.0.0.0:8001"
+  # Имя третьего контейнера. Это контейнер с фронтендом:
   frontend:
     env_file: .env
     build: ./frontend/
-    command: cp -r /app/build/. /static/
     volumes:
-      - static:/static
-  gateway:
-    build: ./nginx/
-    env_file: .env
-    ports:
-      - 8000:80
-    volumes:
-      - static:/static
-      - media:/media
+      - static:/app/static/
 
+  gateway:
+    build:
+      context: ./nginx/
+    volumes:
+          - static:/usr/share/nginx/html/static/:ro
+          - media:/usr/share/nginx/html/media/:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+      - frontend

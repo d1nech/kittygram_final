@@ -1,20 +1,22 @@
-# flake8: noqa
 import os
 from pathlib import Path
 
+import environ
+from django.core.management.utils import get_random_secret_key
+
+env = environ.Env(
+    DEBUG=(bool, False)
+)
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-cg6*%6d51ef8f#4!r3*$vmxm4)abgjw8mo!4y-q*uq1!4$-89$'
+SECRET_KEY = get_random_secret_key()
 
-DEBUG = False
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'  # True будет только если True в .env
 
-ALLOWED_HOSTS = ['0.0.0.0', 'localhost', '127.0.0.1', 'backend', 'kittyfree.hopto.org']
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS').split(',')
 
-POSTGRES_USER = os.getenv('POSTGRES_USER', 'django_user')
-POSTGRES_PASSWORD = os.getenv('POSTGRES_PASSWORD', 'mysecretpassword')
-POSTGRES_DB = os.getenv('POSTGRES_DB', 'django')
-DB_HOST = os.getenv('DB_HOST', 'db')
-DB_PORT = os.getenv('DB_PORT', '5432')
+STATIC_ROOT = "/app/collected_static"
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -59,15 +61,15 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'kittygram_backend.wsgi.application'
 
-
+environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': POSTGRES_DB,
-        'USER': POSTGRES_USER,
-        'PASSWORD': POSTGRES_PASSWORD,
-        'HOST': DB_HOST,
-        'PORT': DB_PORT,
+        'ENGINE': os.environ.get('DATABASE_ENGINE'),
+        'NAME': os.environ.get('DATABASE_NAME'),
+        'USER': os.environ.get('DATABASE_USER'),
+        'PASSWORD': os.environ.get('DATABASE_PASSWORD'),
+        'HOST': os.environ.get('DATABASE_HOST'),
+        'PORT': os.environ.get('DATABASE_PORT'),
     }
 }
 
@@ -102,7 +104,7 @@ USE_TZ = True
 
 
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+STATIC_ROOT = os.path.join(BASE_DIR, 'collected_static')
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -111,7 +113,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated', 
+        'rest_framework.permissions.IsAuthenticated',
     ],
 
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -122,10 +124,3 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 10,
 
 }
-
-CSRF_TRUSTED_ORIGINS = [
-    'https://kittyfree.hopto.org',
-    'http://kittyfree.hopto.org',
-    'https://158.160.210.182',
-    'http://158.160.210.182',
-]

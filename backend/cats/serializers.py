@@ -44,23 +44,19 @@ class CatSerializer(serializers.ModelSerializer):
     color = Hex2NameColor()
     age = serializers.SerializerMethodField()
     image = Base64ImageField(required=False, allow_null=True)
-    image_url = serializers.SerializerMethodField(
-        'get_image_url',
-        read_only=True,
-    )
 
     class Meta:
         model = Cat
         fields = (
-            'id', 'name', 'color', 'birth_year', 'achievements',
-            'owner', 'age', 'image', 'image_url'
-        )
+            'id',
+            'name',
+            'color',
+            'birth_year',
+            'achievements',
+            'owner',
+            'age',
+            'image')
         read_only_fields = ('owner',)
-
-    def get_image_url(self, obj):
-        if obj.image:
-            return obj.image.url
-        return None
 
     def get_age(self, obj):
         return dt.datetime.now().year - obj.birth_year
@@ -69,16 +65,16 @@ class CatSerializer(serializers.ModelSerializer):
         if 'achievements' not in self.initial_data:
             cat = Cat.objects.create(**validated_data)
             return cat
-        achievements = validated_data.pop('achievements')
-        cat = Cat.objects.create(**validated_data)
-        for achievement in achievements:
-            current_achievement, status = Achievement.objects.get_or_create(
-                **achievement
-            )
-            AchievementCat.objects.create(
-                achievement=current_achievement, cat=cat
-            )
-        return cat
+        else:
+            achievements = validated_data.pop('achievements')
+            cat = Cat.objects.create(**validated_data)
+            for achievement in achievements:
+                current_achievement, status = \
+                    Achievement.objects.get_or_create(**achievement)
+                AchievementCat.objects.create(
+                    achievement=current_achievement, cat=cat
+                )
+            return cat
 
     def update(self, instance, validated_data):
         instance.name = validated_data.get('name', instance.name)
@@ -87,19 +83,14 @@ class CatSerializer(serializers.ModelSerializer):
             'birth_year', instance.birth_year
         )
         instance.image = validated_data.get('image', instance.image)
-
-        if 'achievements' not in validated_data:
-            instance.save()
-            return instance
-
-        achievements_data = validated_data.pop('achievements')
-        lst = []
-        for achievement in achievements_data:
-            current_achievement, status = Achievement.objects.get_or_create(
-                **achievement
-            )
-            lst.append(current_achievement)
-        instance.achievements.set(lst)
+        if 'achievements' in validated_data:
+            achievements_data = validated_data.pop('achievements')
+            lst = []
+            for achievement in achievements_data:
+                current_achievement, status = \
+                    Achievement.objects.get_or_create(**achievement)
+                lst.append(current_achievement)
+            instance.achievements.set(lst)
 
         instance.save()
         return instance

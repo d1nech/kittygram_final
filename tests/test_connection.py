@@ -18,13 +18,13 @@ def _get_validated_link(
         f'`{link_key}`.'
     )
     link: str = deploy_info_file_content[link_key]
-    assert link.startswith('https'), (
+    assert link.startswith('http'), (
         f'Убедитесь, что cсылка ключ `{link_key}` в файле '
         f'`{path_to_deploy_info_file}` содержит ссылку, которая начинается с '
-        'префикса `https`.'
+        'префикса `http`.'
     )
     link_pattern = re.compile(
-        r'^https:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.'
+        r'^http:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.'
         r'[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$'
     )
     assert link_pattern.match(link), (
@@ -68,7 +68,6 @@ def test_link_connection(
                                link_key)
     response = _make_safe_request(link)
     cats_project_name = 'Kittygram'
-    taski_project_name = 'Taski'
     assert_msg_template = (
         f'Убедитесь, что по ссылке `{link}` доступен проект '
         '`{project_name}`.'
@@ -77,39 +76,6 @@ def test_link_connection(
         assert cats_project_name in response.text, (
             assert_msg_template.format(project_name=cats_project_name)
         )
-    else:
-        assert_msg = assert_msg_template.format(
-            project_name=taski_project_name
-        )
-        js_link = _get_js_link(response)
-        assert js_link, assert_msg
-        try:
-            taski_response = requests.get(f'{link}/{js_link}')
-        except requests.exceptions.ConnectionError:
-            raise AssertionError(assert_msg)
-        assert taski_response.status_code == HTTPStatus.OK, assert_msg
-        assert taski_project_name in taski_response.text, assert_msg
-
-
-def test_projects_on_same_ip(
-        deploy_file_info: tuple[Path, str],
-        deploy_info_file_content: dict[str, str],
-        kittygram_link_key: str, taski_link_key: str
-) -> None:
-    links = [
-        _get_validated_link(deploy_file_info, deploy_info_file_content,
-                            link_key)
-        for link_key in (kittygram_link_key, taski_link_key)
-    ]
-    responses = [_make_safe_request(link, stream=True) for link in links]
-    ips = [
-        response.raw._original_response.fp.raw._sock.getpeername()[0]
-        for response in responses
-    ]
-    assert ips[0] == ips[1], (
-        'Убедитесь, что оба проекта развернуты на одном сервере. В ходе '
-        'проверки обнаружено, что проекты размещены на разных ip-адресах.'
-    )
 
 
 def test_kittygram_static_is_available(

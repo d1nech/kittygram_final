@@ -125,7 +125,7 @@ export const EditCardPage = ({ data, setData, extraClass = "" }) => {
           <div className={styles.img_box}>
             <img
               className={styles.current_img}
-              src={card.image_url}
+              src={card.image}
               alt="Фото котика."
             />
             <ButtonSecondary
@@ -144,7 +144,7 @@ export const EditCardPage = ({ data, setData, extraClass = "" }) => {
             <p className="text text_type_medium-16 text_color_primary">
               {currentFileName
                 ? currentFileName
-                : "Загрузите фото в фотрмате JPG"}
+                : "Загрузите фото в формате JPG"}
             </p>
           </label>
         )}
