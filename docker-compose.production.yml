@@ -1,0 +1,68 @@
+version: '3'
+
+volumes:
+  pg_data:
+  static_volume:
+  media_volume:
+
+services:
+  db:
+    image: postgres:13
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    env_file: .env
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    restart: always
+    networks:
+      - kitty_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  backend:
+    depends_on:
+      - db
+    image: korsarr/kitty_backend
+    env_file: .env
+    working_dir: /app
+    environment:
+      - PYTHONPATH=/app/cats
+      - DJANGO_SETTINGS_MODULE=kittygram_backend.settings
+      - PORT=8000
+    volumes:
+      - static_volume:/app/static
+      - media_volume:/app/media
+    restart: always
+    networks:
+      - kitty_network
+  frontend:
+    depends_on:
+      - backend
+    env_file: .env
+    image: korsarr/kittygram_frontend
+    command: cp -r /app/build/. /static/
+    volumes:
+      - static_volume:/static
+    networks:
+      - kitty_network
+  gateway:
+    depends_on:
+      - backend
+    image: korsarr/kitty_gateway
+    env_file: .env
+    ports:
+      - 8001:80
+    volumes:
+      - static_volume:/static
+      - media_volume:/media
+    restart: always
+    networks:
+      - kitty_network
+
+networks:
+  kitty_network:
+    driver: bridge
