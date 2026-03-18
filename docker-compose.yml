@@ -1,59 +1,43 @@
+version: '3'
+
 volumes:
   pg_data:
   static:
   media:
 
-# Перечень контейнеров:
 services:
-  # Имя и описание первого контейнера; имя выбирает разработчик. 
-  # Это контейнер с базой данных:
-  postgres:
-    # Из какого образа запустить контейнер:
-    image: postgres:13.10
-    # Файл (или список файлов) с переменными окружения:
-    env_file: .env 
-    environment:
-      - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
-      - POSTGRES_USER=${DATABASE_USER}
-      - POSTGRES_DB=${DATABASE_NAME}
+  db:
+    image: postgres:13
     volumes:
       - pg_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-  # Имя и описание контейнера с бэкендом:
+    env_file: .env
+
   backend:
-    # Из какого Dockerfile собирать образ для этого контейнера:
     build: ./backend/
     env_file: .env
-    # Какие контейнеры нужно запустить до старта этого контейнера:
-    volumes:
-      - static:/app/collected_static/
-      - media:/app/media/
     depends_on:
-      postgres:
-        condition: service_healthy
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py collectstatic --noinput &&
-             gunicorn kittygram_backend.wsgi:application --bind 0.0.0.0:8001"
-  # Имя третьего контейнера. Это контейнер с фронтендом:
-  frontend:
-    env_file: .env
-    build: ./frontend/
+      - db
     volumes:
-      - static:/app/static/
+      - static:/app/staticfiles
+      - media:/app/media
+
+  frontend:
+    build: ./frontend/
+    env_file: .env
+    command: sh -c "cp /app/build/index.html /app/build/favicon.ico /app/build/manifest.json /app/build/robots.txt /app/build/asset-manifest.json /static/ 2>/dev/null; cp -r /app/build/static/* /static/"
+    volumes:
+      - static:/static
 
   gateway:
-    build:
-      context: ./nginx/
-    volumes:
-          - static:/usr/share/nginx/html/static/:ro
-          - media:/usr/share/nginx/html/media/:ro
+    build: ./nginx/
+    env_file: .env
     ports:
-      - "80:80"
+      - 9000:80
+    volumes:
+      - static:/static
+      - media:/media
     depends_on:
-      - backend
-      - frontend
+      backend:
+        condition: service_started
+      frontend:
+        condition: service_completed_successfully

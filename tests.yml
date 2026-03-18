@@ -1,3 +1,4 @@
 repo_owner: d1nech
-kittygram_domain: http://158.160.42.92:80
+taski_domain: https://your-taski-domain.example.com
+kittygram_domain: https://your-kittygram-domain.example.com
 dockerhub_username: d1nech

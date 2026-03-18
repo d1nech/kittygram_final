@@ -1,26 +1,18 @@
-# Создать образ на основе базового слоя,
-# который содержит файлы ОС и интерпретатор Python 3.9.
-FROM python:3.9
+FROM python:3.9-slim
 
-# Перейти в образе в директорию /app: в ней будет храниться код проекта.
-# Если директории с таким именем нет, она будет создана. 
-# Название директории может быть любым.
 WORKDIR /app
-# Дальнейшие инструкции будут выполняться в директории /app
 
-# Скопировать с локального компьютера файл зависимостей
-# в текущую директорию образа (текущая директория — это /app).
 COPY requirements.txt .
 
-# Выполнить в текущей директории образа команду терминала
-# для установки зависимостей.
-RUN pip install -r requirements.txt --no-cache-dir
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Скопировать всё необходимое содержимое 
-# той директории локального компьютера, где сохранён Dockerfile,
-# в текущую рабочую директорию образа — /app.
 COPY . .
 
-# При старте контейнера запустить сервер разработки.
-#CMD ["python", "manage.py", "runserver", "0:8001"]
-CMD ["./entrypoint.sh"]
+# Исправление окончаний строк (CRLF → LF) для Windows
+RUN sed -i 's/\r$//' /app/docker-entrypoint.sh
+
+RUN chmod +x /app/docker-entrypoint.sh
+
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "kittygram_backend.wsgi:application"]
