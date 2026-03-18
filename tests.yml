@@ -1,4 +1,4 @@
 repo_owner: d1nech
-taski_domain: https://your-taski-domain.example.com
-kittygram_domain: https://your-kittygram-domain.example.com
-dockerhub_username: d1nech
+taski_domain: http://127.0.0.1:9000
+kittygram_domain: http://127.0.0.1:9000
+dockerhub_username: dinech
