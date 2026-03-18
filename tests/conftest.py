@@ -13,8 +13,6 @@ DOCKERFILE_NAME = 'Dockerfile'
 DOCKERHUB_USERNAME_KEY = 'dockerhub_username'
 WORKFLOW_FILE = 'kittygram_workflow.yml'
 DOCKER_COMPOSE_PROD_FILE_NAME = 'docker-compose.production.yml'
-TASKI_DOMAIN_KEY = 'taski_domain'
-KITTYGRAM_DOMAIN_KEY = 'kittygram_domain'
 
 for dir_name in (BACKEND_DIR_NAME, FRONTEND_DIR_NAME, NGINX_DIR_NAME):
     path_to_dir = BASE_DIR / dir_name
@@ -104,13 +102,3 @@ def expected_deploy_info_file_content() -> dict[str, str]:
         'repo_owner': 'ваше имя пользователя на GitHub',
         'dockerhub_username': 'ваше имя пользователя на Docker Hub',
     }
-
-
-@pytest.fixture(params=[TASKI_DOMAIN_KEY, KITTYGRAM_DOMAIN_KEY])
-def link_key(request: pytest.FixtureRequest) -> str:
-    return str(request.param)
-
-
-@pytest.fixture
-def kittygram_link_key() -> str:
-    return KITTYGRAM_DOMAIN_KEY
